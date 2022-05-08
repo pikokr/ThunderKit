@@ -4,11 +4,10 @@ using ThunderKit.Core.Actions;
 using UnityEditor;
 using UnityEngine;
 
-namespace ThunderKit.Core.Utilities
-{
-    public static class ScriptableHelper
-    {
+namespace ThunderKit.Core.Utilities {
+    public static class ScriptableHelper {
         readonly static object[] findTextureParams = new object[1];
+
         /// <summary>
         /// Creates and Saves a ScriptableObject of Type T allowing the user the input the name of the new asset, or cancel by pressing escape
         /// The asset will be created in one of the folowing:
@@ -31,24 +30,27 @@ namespace ThunderKit.Core.Utilities
             {
                 path = path.Replace(Path.GetFileName(AssetDatabase.GetAssetPath(Selection.activeObject)), "");
             }
+
             var name = typeof(T).Name;
             string assetPathAndName = AssetDatabase.GenerateUniqueAssetPath($"{path}/{name}.asset");
             Action<int, string, string> action =
                 (int instanceId, string pathname, string resourceFile) =>
-                  {
-                      AssetDatabase.CreateAsset(asset, pathname);
-                      AssetDatabase.SaveAssets();
-                      AssetDatabase.Refresh();
-                      Selection.activeObject = asset;
-                      afterCreated?.Invoke(asset);
-                  };
+                {
+                    AssetDatabase.CreateAsset(asset, pathname);
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                    Selection.activeObject = asset;
+                    afterCreated?.Invoke(asset);
+                };
 
             var endAction = ScriptableObject.CreateInstance<SelfDestructingActionAsset>();
             endAction.action = action;
-            var findTexture = typeof(EditorGUIUtility).GetMethod(nameof(EditorGUIUtility.FindTexture), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var findTexture = typeof(EditorGUIUtility).GetMethod(nameof(EditorGUIUtility.FindTexture),
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
             findTextureParams[0] = typeof(T);
-            var icon = (Texture2D)findTexture.Invoke(null, findTextureParams);
-            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(asset.GetInstanceID(), endAction, assetPathAndName, icon, null);
+            var icon = (Texture2D) findTexture.Invoke(null, findTextureParams);
+            ProjectWindowUtil.StartNameEditingIfProjectWindowExists(asset.GetInstanceID(), endAction, assetPathAndName,
+                icon, null);
         }
 
         /// <summary>
@@ -58,10 +60,15 @@ namespace ThunderKit.Core.Utilities
         /// <param name="tex">icon to assign to Object</param>
         public static void AssignIcon(UnityEngine.Object g, Texture2D tex)
         {
+#if UNITY_2021_2
+            EditorGUIUtility.SetIconForObject(g, tex);
+#else
             Type editorGUIUtilityType = typeof(EditorGUIUtility);
-            System.Reflection.BindingFlags bindingFlags = System.Reflection.BindingFlags.InvokeMethod | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+            System.Reflection.BindingFlags bindingFlags =
+ System.Reflection.BindingFlags.InvokeMethod | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
             object[] args = new object[] { g, tex };
             editorGUIUtilityType.InvokeMember("SetIconForObject", bindingFlags, null, null, args);
+#endif
         }
 
         /// <summary>
@@ -88,6 +95,7 @@ namespace ThunderKit.Core.Utilities
             {
                 path = path.Replace(Path.GetFileName(AssetDatabase.GetAssetPath(Selection.activeObject)), "");
             }
+
             var name = overrideName == null ? t.Name : overrideName();
             string assetPathAndName = AssetDatabase.GenerateUniqueAssetPath($"{path}/{name}.asset");
 
@@ -116,6 +124,7 @@ namespace ThunderKit.Core.Utilities
                 initializer?.Invoke(settings);
                 AssetDatabase.SaveAssets();
             }
+
             return settings;
         }
 
@@ -128,7 +137,8 @@ namespace ThunderKit.Core.Utilities
         /// <returns>Created ScriptableObject</returns>
         public static object EnsureAsset(string assetPath, Type t, Action<object> initializer = null)
         {
-            if (!typeof(ScriptableObject).IsAssignableFrom(t)) throw new ArgumentException("Paramater Type type must be of type ScriptableObject");
+            if (!typeof(ScriptableObject).IsAssignableFrom(t))
+                throw new ArgumentException("Paramater Type type must be of type ScriptableObject");
 
             var settings = AssetDatabase.LoadAssetAtPath(assetPath, t);
             if (settings == null)
@@ -138,6 +148,7 @@ namespace ThunderKit.Core.Utilities
                 initializer?.Invoke(settings);
                 AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(settings), ImportAssetOptions.ForceUpdate);
             }
+
             return settings;
         }
     }
