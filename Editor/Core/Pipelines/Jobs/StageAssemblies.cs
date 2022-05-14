@@ -135,6 +135,7 @@ namespace ThunderKit.Core.Pipelines.Jobs
                 };
                 builder.excludeReferences = builder.defaultReferences.Where(rf => rf.Contains(assemblyName)).ToArray();
                 builder.buildTargetGroup = buildTargetGroup;
+                builder.compilerOptions.AllowUnsafeCode = definition.asmDef.allowUnsafeCode;
 
                 var index = pipeline.ManifestIndex;
                 void OnBuildStarted(string path) => pipeline.Log(LogLevel.Information, $"Building : {path}");
