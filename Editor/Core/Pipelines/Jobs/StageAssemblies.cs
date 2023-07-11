@@ -157,7 +157,7 @@ namespace ThunderKit.Core.Pipelines.Jobs
                 compilerOptions = new ScriptCompilerOptions()
                 {
                     CodeOptimization = releaseBuild ? CodeOptimization.Release : CodeOptimization.Debug,
-
+                    AllowUnsafeCode = true
                 },
 #endif
                 flags = releaseBuild ? AssemblyBuilderFlags.None : AssemblyBuilderFlags.DevelopmentBuild,
