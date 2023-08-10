@@ -21,8 +21,8 @@ namespace ThunderKit.Pipelines.Jobs
         [EnumFlag]
         public BuildAssetBundleOptions AssetBundleBuildOptions = BuildAssetBundleOptions.UncompressedAssetBundle;
         public BuildTarget buildTarget = BuildTarget.StandaloneWindows;
-        public bool recurseDirectories;
         public bool simulate;
+        public bool copyManifest = true;
 
         [PathReferenceResolver]
         public string BundleArtifactPath = "<AssetBundleStaging>";
@@ -42,7 +42,7 @@ namespace ThunderKit.Pipelines.Jobs
                 }
 
             var assetBundleDefs = abds.ToArray();
-            var hasValidBundles = assetBundleDefs.Any(abd => abd.assetBundles.Any(ab => !string.IsNullOrEmpty(ab.assetBundleName) && ab.assets.Any()));
+            var hasValidBundles = assetBundleDefs.Any(abd => abd.assetBundles.Any(ab => !string.IsNullOrEmpty(ab)));
             if (!hasValidBundles)
             {
                 var scriptPath = UnityWebRequest.EscapeURL(AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(this)));
@@ -52,109 +52,22 @@ namespace ThunderKit.Pipelines.Jobs
             var bundleArtifactPath = BundleArtifactPath.Resolve(pipeline, this);
             Directory.CreateDirectory(bundleArtifactPath);
 
-            var explicitAssets = assetBundleDefs
-                                .SelectMany(abd => abd.assetBundles)
-                                .SelectMany(ab => ab.assets)
-                                .ToArray();
-
-            var explicitAssetPaths = new List<string>();
-            PopulateWithExplicitAssets(explicitAssets, explicitAssetPaths);
-
-            var defBuildDetails = new List<string>();
-            var logBuilder = new StringBuilder();
-            var builds = new AssetBundleBuild[assetBundleDefs.Sum(abd => abd.assetBundles.Length)];
-
-            var buildsIndex = 0;
-            for (int defIndex = 0; defIndex < assetBundleDefs.Length; defIndex++)
-            {
-                var assetBundleDef = assetBundleDefs[defIndex];
-                var playerAssemblies = CompilationPipeline.GetAssemblies();
-                var assemblyFiles = playerAssemblies.Select(pa => pa.outputPath).ToArray();
-                var sourceFiles = playerAssemblies.SelectMany(pa => pa.sourceFiles).ToArray();
-
-                //reset logging containers
-                defBuildDetails.Clear();
-
-                for (int i = 0; i < assetBundleDef.assetBundles.Length; i++)
-                {
-                    var def = assetBundleDef.assetBundles[i];
-                    var build = builds[buildsIndex];
-                    var assets = new List<string>();
-
-                    if (def.assets.FirstOrDefault(x => x is SceneAsset) != null)
-                    {
-                        foreach (var sceneAsset in def.assets.Where(x => x is SceneAsset))
-                            assets.Add(AssetDatabase.GetAssetPath(sceneAsset));
-                    }
-                    else
-                    {
-                        PopulateWithExplicitAssets(def.assets, assets);
-
-                        var dependencies = assets
-                            .SelectMany(assetPath => AssetDatabase.GetDependencies(assetPath))
-                            .Where(dap => !explicitAssetPaths.Contains(dap))
-                            .ToArray();
-                        assets.AddRange(dependencies);
-                    }
-
-                    build.assetNames = assets
-                        .Select(ap => ap.Replace("\\", "/"))
-                        .Where(dap => !ArrayUtility.Contains(excludedExtensions, Path.GetExtension(dap)) &&
-                                      !ArrayUtility.Contains(sourceFiles, dap) &&
-                                      !ArrayUtility.Contains(assemblyFiles, dap) &&
-                                      !AssetDatabase.IsValidFolder(dap))
-                        .Distinct()
-                        .ToArray();
-                    build.assetBundleName = def.assetBundleName;
-                    builds[buildsIndex] = build;
-                    buildsIndex++;
-
-                    LogBundleDetails(logBuilder, build);
-
-                    defBuildDetails.Add(logBuilder.ToString());
-                    logBuilder.Clear();
-                }
-
-                var prevInd = pipeline.ManifestIndex;
-                pipeline.ManifestIndex = abdIndices[assetBundleDef];
-                pipeline.Log(LogLevel.Information, $"Creating {assetBundleDef.assetBundles.Length} AssetBundles", defBuildDetails.ToArray());
-                pipeline.ManifestIndex = prevInd;
-            }
-
             if (!simulate)
             {
-                BuildPipeline.BuildAssetBundles(bundleArtifactPath, builds, AssetBundleBuildOptions, buildTarget);
+                const string dir = "ThunderKit/Temp/ThunderKit/AssetBundles";
+                BuildPipeline.BuildAssetBundles(dir, AssetBundleBuildOptions, buildTarget);
                 for (pipeline.ManifestIndex = 0; pipeline.ManifestIndex < pipeline.Manifests.Length; pipeline.ManifestIndex++)
                 {
                     var manifest = pipeline.Manifest;
                     foreach (var assetBundleDef in manifest.Data.OfType<AssetBundleDefinitions>())
                     {
-                        var bundleNames = assetBundleDef.assetBundles.Select(ab => ab.assetBundleName).ToArray();
                         foreach (var outputPath in assetBundleDef.StagingPaths.Select(path => path.Resolve(pipeline, this)))
                         {
-                            foreach (string dirPath in Directory.GetDirectories(bundleArtifactPath, "*", SearchOption.AllDirectories))
-                                Directory.CreateDirectory(dirPath.Replace(bundleArtifactPath, outputPath));
-
-                            foreach (string filePath in Directory.GetFiles(bundleArtifactPath, "*", SearchOption.AllDirectories))
+                            foreach (var bundle in assetBundleDef.assetBundles)
                             {
-                                bool found = false;
-                                foreach (var bundleName in bundleNames)
-                                {
-                                    if (filePath.IndexOf(bundleName, System.StringComparison.OrdinalIgnoreCase) >= 0)
-                                    {
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                if (!found) continue;
-                                string destFileName = filePath.Replace(bundleArtifactPath, outputPath);
-                                Directory.CreateDirectory(Path.GetDirectoryName(destFileName));
-                                FileUtil.ReplaceFile(filePath, destFileName);
+                                FileUtil.ReplaceFile(Path.Combine(dir, bundle), Path.Combine(outputPath, bundle));
+                                if (copyManifest) FileUtil.ReplaceFile(Path.Combine(dir, bundle + ".manifest"), Path.Combine(outputPath, bundle + ".manifest"));
                             }
-
-                            var manifestSource = Path.Combine(bundleArtifactPath, $"{Path.GetFileName(bundleArtifactPath)}.manifest");
-                            var manifestDestination = Path.Combine(outputPath, $"{manifest.Identity.Name}.manifest");
-                            FileUtil.ReplaceFile(manifestSource, manifestDestination);
                         }
                     }
                 }
@@ -176,29 +89,6 @@ namespace ThunderKit.Pipelines.Jobs
             }
 
             logBuilder.AppendLine();
-        }
-
-        private static void PopulateWithExplicitAssets(IEnumerable<Object> inputAssets, List<string> outputAssets)
-        {
-            foreach (var asset in inputAssets)
-            {
-                var assetPath = AssetDatabase.GetAssetPath(asset);
-
-                if (AssetDatabase.IsValidFolder(assetPath))
-                {
-                    var files = Directory.GetFiles(assetPath, "*", SearchOption.AllDirectories);
-                    var assets = files.Select(path => AssetDatabase.LoadAssetAtPath<Object>(path));
-                    PopulateWithExplicitAssets(assets, outputAssets);
-                }
-                else if (asset is UnityPackage up)
-                {
-                    PopulateWithExplicitAssets(up.AssetFiles, outputAssets);
-                }
-                else
-                {
-                    outputAssets.Add(assetPath);
-                }
-            }
         }
     }
 }
