@@ -54,7 +54,7 @@ namespace ThunderKit.Pipelines.Jobs
 
             if (!simulate)
             {
-                var dir = $"ThunderKit/Temp/ThunderKit/AssetBundles/{buildTarget}";
+                var dir = $"Temp/ThunderKit/AssetBundles/{buildTarget}";
                 if (Directory.Exists(dir))
                 {
                     Directory.Delete(dir, true);
@@ -72,7 +72,7 @@ namespace ThunderKit.Pipelines.Jobs
                             foreach (var bundle in assetBundleDef.assetBundles)
                             {
                                 FileUtil.ReplaceFile(Path.Combine(dir, bundle), Path.Combine(outputPath, bundle));
-                                if (copyManifest) FileUtil.ReplaceFile(Path.Combine(dir, bundle + ".manifest"), Path.Combine(outputPath, bundle + ".manifest"));
+                                // if (copyManifest) FileUtil.ReplaceFile(Path.Combine(dir, bundle + ".manifest"), Path.Combine(outputPath, bundle + ".manifest"));
                             }
                         }
                     }
