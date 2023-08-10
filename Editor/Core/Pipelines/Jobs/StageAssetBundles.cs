@@ -71,8 +71,17 @@ namespace ThunderKit.Pipelines.Jobs
                         {
                             foreach (var bundle in assetBundleDef.assetBundles)
                             {
-                                FileUtil.ReplaceFile(Path.Combine(dir, bundle), Path.Combine(outputPath, bundle));
-                                // if (copyManifest) FileUtil.ReplaceFile(Path.Combine(dir, bundle + ".manifest"), Path.Combine(outputPath, bundle + ".manifest"));
+                                var orig = Path.Combine(dir, bundle);
+                                var dest = Path.Combine(outputPath, bundle);
+                                pipeline.Log(LogLevel.Information, $"Copying {orig} to {dest}");
+                                FileUtil.ReplaceFile(orig, dest);
+                                if (copyManifest)
+                                {
+                                    orig = Path.Combine(dir, bundle + ".manifest");
+                                    dest = Path.Combine(outputPath, bundle + ".manifest");
+                                    pipeline.Log(LogLevel.Information, $"Copying {orig} to {dest}");
+                                    FileUtil.ReplaceFile(orig, dest);
+                                }
                             }
                         }
                     }
