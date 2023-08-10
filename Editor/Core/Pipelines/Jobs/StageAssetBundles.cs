@@ -31,6 +31,9 @@ namespace ThunderKit.Pipelines.Jobs
         public override Task Execute(Pipeline pipeline)
         {
             AssetDatabase.SaveAssets();
+            EditorUserBuildSettings.SwitchActiveBuildTarget(
+                BuildPipeline.GetBuildTargetGroup(buildTarget),
+                buildTarget);
             var manifests = pipeline.Manifests;
             var abds = new List<AssetBundleDefinitions>();
             foreach (var t in manifests) abds.AddRange(t.Data.OfType<AssetBundleDefinitions>());
@@ -65,11 +68,11 @@ namespace ThunderKit.Pipelines.Jobs
                     pipeline.Log(LogLevel.Verbose, "bundle definition iteration");
                     foreach (var bundle in bundles.assetBundles)
                     {
+                        pipeline.Log(LogLevel.Verbose, "bundle iteration");
                         foreach (var outputPath in bundles.StagingPaths.Select(path => path.Resolve(pipeline, this)))
                         {
                             pipeline.Log(LogLevel.Verbose, "output path iteration");
                             {
-                                pipeline.Log(LogLevel.Verbose, "bundle iteration");
                                 var orig = Path.Combine(dir, bundle);
                                 var dest = Path.Combine(outputPath, bundle);
                                 pipeline.Log(LogLevel.Information, $"Copying {orig} to {dest}");
