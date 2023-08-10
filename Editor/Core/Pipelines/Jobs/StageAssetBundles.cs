@@ -58,25 +58,32 @@ namespace ThunderKit.Pipelines.Jobs
                 }
 
                 Directory.CreateDirectory(dir);
+                pipeline.Log(LogLevel.Information, $"Building AssetBundles to {dir}");
                 BuildPipeline.BuildAssetBundles(dir, AssetBundleBuildOptions, buildTarget);
                 foreach (var bundles in abds)
                 {
+                    pipeline.Log(LogLevel.Verbose, "bundle definition iteration");
                     foreach (var outputPath in bundles.StagingPaths.Select(path => path.Resolve(pipeline, this)))
-                    foreach (var bundle in bundles.assetBundles)
                     {
-                        var orig = Path.Combine(dir, bundle);
-                        var dest = Path.Combine(outputPath, bundle);
-                        pipeline.Log(LogLevel.Information, $"Copying {orig} to {dest}");
-                        FileUtil.ReplaceFile(orig, dest);
-                        if (copyManifest)
+                        pipeline.Log(LogLevel.Verbose, "output path iteration");
+                        foreach (var bundle in bundles.assetBundles)
                         {
-                            orig = Path.Combine(dir, bundle + ".manifest");
-                            dest = Path.Combine(outputPath, bundle + ".manifest");
+                            pipeline.Log(LogLevel.Verbose, "bundle iteration");
+                            var orig = Path.Combine(dir, bundle);
+                            var dest = Path.Combine(outputPath, bundle);
                             pipeline.Log(LogLevel.Information, $"Copying {orig} to {dest}");
                             FileUtil.ReplaceFile(orig, dest);
+                            if (copyManifest)
+                            {
+                                orig = Path.Combine(dir, bundle + ".manifest");
+                                dest = Path.Combine(outputPath, bundle + ".manifest");
+                                pipeline.Log(LogLevel.Information, $"Copying {orig} to {dest}");
+                                FileUtil.ReplaceFile(orig, dest);
+                            }
                         }
                     }
                 }
+
                 pipeline.ManifestIndex = -1;
             }
 
