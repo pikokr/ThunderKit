@@ -55,6 +55,12 @@ namespace ThunderKit.Pipelines.Jobs
             if (!simulate)
             {
                 const string dir = "ThunderKit/Temp/ThunderKit/AssetBundles";
+                if (Directory.Exists(dir))
+                {
+                    Directory.Delete(dir, true);
+                }
+
+                Directory.CreateDirectory(dir);
                 BuildPipeline.BuildAssetBundles(dir, AssetBundleBuildOptions, buildTarget);
                 for (pipeline.ManifestIndex = 0; pipeline.ManifestIndex < pipeline.Manifests.Length; pipeline.ManifestIndex++)
                 {
