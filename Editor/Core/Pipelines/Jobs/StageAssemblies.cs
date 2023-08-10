@@ -19,6 +19,8 @@ namespace ThunderKit.Core.Pipelines.Jobs
     [PipelineSupport(typeof(Pipeline)), ManifestProcessor]
     public class StageAssemblies : PipelineJob
     {
+        public string[] defines;
+        
         static string Combine(params string[] component) => Path.Combine(component).Replace('\\', '/');
 #pragma warning disable CS0649 
 
@@ -162,7 +164,8 @@ namespace ThunderKit.Core.Pipelines.Jobs
 #endif
                 flags = releaseBuild ? AssemblyBuilderFlags.None : AssemblyBuilderFlags.DevelopmentBuild,
                 buildTargetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget),
-                buildTarget = buildTarget
+                buildTarget = buildTarget,
+                additionalDefines = defines
             };
 
             var errors = 0;
